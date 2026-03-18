@@ -1,0 +1,21 @@
+# 忽略依赖包
+node_modules/
+
+# 忽略编译产物
+dist/
+target/
+
+# 忽略编辑器配置
+.idea/
+.vscode/
+*.iml
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略日志文件
+nginx/logs/*.log
+
+# 忽略环境变量文件
+.env

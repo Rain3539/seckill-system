@@ -1,0 +1,203 @@
+version: '3.8'
+
+# ======================================================================
+# 秒杀系统 —— MySQL 读写分离版
+#
+# 架构：
+#   mysql-master (3306) ← 写库，backend 写操作路由到此
+#   mysql-slave  (3307) ← 读库，backend 读操作路由到此，binlog 主从同步
+#   redis        (6379)
+#   backend-1/2  (8081/8082) ← 双实例，均配置主从数据源
+#   nginx        (80) ← 反代 + 负载均衡
+#
+# 快速启动：
+#   docker-compose up -d
+#   # 等待 ~30s 让主从完成初始化，然后手动触发复制配置：
+#   docker-compose exec mysql-slave bash /docker-entrypoint-initdb.d/setup-replication.sh
+# ======================================================================
+
+services:
+
+  # ── MySQL 主库（写）──────────────────────────────────────────────────
+  mysql-master:
+    image: mysql:8.0
+    container_name: seckill-mysql-master
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --default-time-zone=+08:00
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: seckill_db
+      MYSQL_USER: seckill
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-seckill123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_master_data:/var/lib/mysql
+      - ./mysql/master/init-master.sql:/docker-entrypoint-initdb.d/init-master.sql
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ── MySQL 从库（读）──────────────────────────────────────────────────
+  mysql-slave:
+    image: mysql:8.0
+    container_name: seckill-mysql-slave
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --default-time-zone=+08:00
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=2
+      - --relay-log=relay-bin
+      - --log-slave-updates=ON
+      - --read-only=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: seckill_db
+      MYSQL_USER: seckill_ro
+      MYSQL_PASSWORD: ${SLAVE_PASSWORD:-seckill_ro123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_slave_data:/var/lib/mysql
+      - ./mysql/slave/init-slave.sql:/docker-entrypoint-initdb.d/01-init-slave.sql
+      - ./mysql/slave/setup-replication.sh:/docker-entrypoint-initdb.d/02-setup-replication.sh
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ── Redis ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: seckill-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 后端实例 1 ────────────────────────────────────────────────────────
+  backend-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: seckill-backend-1
+    ports:
+      - "8081:8080"
+    environment:
+      # 主库（写）
+      - MASTER_DATASOURCE_URL=jdbc:mysql://mysql-master:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=seckill
+      - MASTER_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-seckill123}
+      # 从库（读）
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://mysql-slave:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=seckill_ro
+      - SLAVE_DATASOURCE_PASSWORD=${SLAVE_PASSWORD:-seckill_ro123}
+      # 公共配置
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
+      - INSTANCE_ID=backend-1
+      - TZ=Asia/Shanghai
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    restart: on-failure
+
+  # ── 后端实例 2 ────────────────────────────────────────────────────────
+  backend-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: seckill-backend-2
+    ports:
+      - "8082:8080"
+    environment:
+      - MASTER_DATASOURCE_URL=jdbc:mysql://mysql-master:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=seckill
+      - MASTER_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-seckill123}
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://mysql-slave:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=seckill_ro
+      - SLAVE_DATASOURCE_PASSWORD=${SLAVE_PASSWORD:-seckill_ro123}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
+      - INSTANCE_ID=backend-2
+      - TZ=Asia/Shanghai
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    restart: on-failure
+
+  # ── Nginx 反代 ────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: seckill-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/logs:/var/log/nginx
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/static:/usr/share/nginx/static:ro
+    depends_on:
+      - backend-1
+      - backend-2
+    networks:
+      - seckill-net
+    restart: always
+
+volumes:
+  mysql_master_data:
+  mysql_slave_data:
+  redis_data:
+
+networks:
+  seckill-net:
+    driver: bridge
