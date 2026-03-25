@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/seckill")
@@ -40,12 +41,27 @@ public class SeckillController {
         return ResultVO.success(seckillProductService.getById(id));
     }
 
-    /** 执行秒杀 POST /api/seckill/do */
+    /**
+     * 执行秒杀（异步）POST /api/seckill/do
+     * Redis 预减库存 + Kafka 异步处理，立即返回排队结果
+     */
     @PostMapping("/do")
-    public ResultVO<Order> doSeckill(@Valid @RequestBody SeckillRequestDTO dto,
-                                     HttpServletRequest request) {
+    public ResultVO<Map<String, Object>> doSeckill(@Valid @RequestBody SeckillRequestDTO dto,
+                                                    HttpServletRequest request) {
         Long userId = extractUserId(request);
-        Order order = seckillService.doSeckill(userId, dto);
+        Map<String, Object> result = seckillService.doSeckill(userId, dto);
+        return ResultVO.success(result);
+    }
+
+    /**
+     * 查询秒杀订单结果 GET /api/seckill/order/{seckillProductId}
+     * 前端轮询此接口获取最终订单信息
+     */
+    @GetMapping("/order/{seckillProductId}")
+    public ResultVO<Order> getSeckillOrder(@PathVariable Long seckillProductId,
+                                           HttpServletRequest request) {
+        Long userId = extractUserId(request);
+        Order order = seckillService.getSeckillOrder(userId, seckillProductId);
         return ResultVO.success(order);
     }
 

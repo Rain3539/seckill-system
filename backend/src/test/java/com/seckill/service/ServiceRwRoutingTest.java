@@ -14,6 +14,7 @@ import com.seckill.model.entity.User;
 import com.seckill.service.impl.OrderServiceImpl;
 import com.seckill.service.impl.UserServiceImpl;
 import com.seckill.utils.JwtUtils;
+import com.seckill.utils.RedisUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ class ServiceRwRoutingTest {
     private JwtUtils      jwtUtils;
     private OrderMapper   orderMapper;
     private ProductMapper productMapper;
+    private RedisUtils    redisUtils;
     private BCryptPasswordEncoder passwordEncoder;
 
     /* ── 待测 Service（原始，未代理） ── */
@@ -58,10 +60,11 @@ class ServiceRwRoutingTest {
         jwtUtils      = mock(JwtUtils.class);
         orderMapper   = mock(OrderMapper.class);
         productMapper = mock(ProductMapper.class);
+        redisUtils    = mock(RedisUtils.class);
         passwordEncoder = new BCryptPasswordEncoder();
 
         rawUserService  = new UserServiceImpl(userMapper, jwtUtils);
-        rawOrderService = new OrderServiceImpl(orderMapper, productMapper);
+        rawOrderService = new OrderServiceImpl(orderMapper, productMapper, redisUtils);
 
         // JwtUtils 返回假 token
         when(jwtUtils.generateToken(anyLong(), anyString())).thenReturn("fake-token");
@@ -126,16 +129,16 @@ class ServiceRwRoutingTest {
     // ════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("getMyOrders() 使用 @DS(SLAVE)，查询应走从库")
-    void getMyOrdersRouteToSlave() {
+    @DisplayName("getMyOrders() 使用 @DS(MASTER)，下单后立即可见")
+    void getMyOrdersRouteToMaster() {
         when(orderMapper.findByUserId(1L)).thenReturn(List.of(new Order()));
 
-        DataSourceContextHolder.set(DataSourceType.SLAVE);
+        DataSourceContextHolder.set(DataSourceType.MASTER);
         try {
             List<Order> orders = rawOrderService.getMyOrders(1L);
             assertNotNull(orders);
-            assertEquals(DataSourceType.SLAVE, DataSourceContextHolder.get(),
-                    "getMyOrders() 应维持 SLAVE 上下文");
+            assertEquals(DataSourceType.MASTER, DataSourceContextHolder.get(),
+                    "getMyOrders() 应走主库，避免主从延迟");
         } finally {
             DataSourceContextHolder.clear();
         }

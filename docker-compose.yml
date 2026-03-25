@@ -7,6 +7,7 @@ version: '3.8'
 #   mysql-master (3306) ← 写库，backend 写操作路由到此
 #   mysql-slave  (3307) ← 读库，backend 读操作路由到此，binlog 主从同步
 #   redis        (6379)
+#   kafka        (9092) ← 异步订单处理，削峰填谷
 #   backend-1/2  (8081/8082) ← 双实例，均配置主从数据源
 #   nginx        (80) ← 反代 + 负载均衡
 #
@@ -107,6 +108,36 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Kafka（单节点 + KRaft，无需 ZooKeeper）──────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: seckill-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   # ── 后端实例 1 ────────────────────────────────────────────────────────
   backend-1:
     build:
@@ -128,6 +159,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=backend-1
       - TZ=Asia/Shanghai
@@ -137,6 +169,8 @@ services:
       mysql-slave:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - seckill-net
@@ -160,6 +194,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=backend-2
       - TZ=Asia/Shanghai
@@ -169,6 +204,8 @@ services:
       mysql-slave:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - seckill-net
@@ -197,6 +234,7 @@ volumes:
   mysql_master_data:
   mysql_slave_data:
   redis_data:
+  kafka_data:
 
 networks:
   seckill-net:

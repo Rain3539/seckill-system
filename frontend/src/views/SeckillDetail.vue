@@ -95,9 +95,14 @@
 
     <el-empty v-else-if="!loading" description="商品不存在" />
 
-    <!-- 秒杀成功弹窗 -->
-    <el-dialog v-model="orderDialogVisible" title="🎉 秒杀成功！" width="420px" center>
-      <div class="order-success">
+    <!-- 秒杀结果弹窗 -->
+    <el-dialog v-model="orderDialogVisible" :title="orderProcessing ? '⏳ 订单处理中' : '🎉 秒杀成功！'" width="420px" center>
+      <div class="order-success" v-if="orderProcessing">
+        <el-icon size="64" color="#409eff"><Loading /></el-icon>
+        <p class="sub" style="margin-top:16px">秒杀请求已提交，订单正在处理中...</p>
+        <p class="sub">请稍候，系统正在为您创建订单</p>
+      </div>
+      <div class="order-success" v-else>
         <el-icon size="64" color="#f56c6c"><CircleCheckFilled /></el-icon>
         <p class="sub">订单号</p>
         <p class="order-no">{{ createdOrder?.orderNo }}</p>
@@ -107,8 +112,13 @@
         </el-alert>
       </div>
       <template #footer>
-        <el-button @click="orderDialogVisible=false; $router.push('/orders')">查看订单</el-button>
-        <el-button type="danger" :loading="paying" @click="handlePay">立即支付</el-button>
+        <template v-if="orderProcessing">
+          <el-button @click="orderDialogVisible=false">关闭</el-button>
+        </template>
+        <template v-else>
+          <el-button @click="orderDialogVisible=false; $router.push('/orders')">查看订单</el-button>
+          <el-button type="danger" :loading="paying" @click="handlePay">立即支付</el-button>
+        </template>
       </template>
     </el-dialog>
   </div>
@@ -118,8 +128,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Present, Timer, CircleCheckFilled } from '@element-plus/icons-vue'
-import { getSeckillDetailApi, doSeckillApi } from '../api/seckill.js'
+import { ArrowLeft, Present, Timer, CircleCheckFilled, Loading } from '@element-plus/icons-vue'
+import { getSeckillDetailApi, doSeckillApi, getSeckillOrderApi } from '../api/seckill.js'
 import { payOrderApi } from '../api/order.js'
 import { useUserStore } from '../store/index.js'
 
@@ -136,6 +146,7 @@ const buying             = ref(false)
 const paying             = ref(false)
 const orderDialogVisible = ref(false)
 const createdOrder       = ref(null)
+const orderProcessing    = ref(false)
 const countdown          = ref('')
 let   timer              = null
 
@@ -203,14 +214,36 @@ async function handleSeckill() {
   buying.value = true
   try {
     const res = await doSeckillApi({ seckillProductId: sp.value.id, quantity: 1 })
-    createdOrder.value = res.data
+    // 异步模式：res.data = { messageId, status: "PROCESSING", message }
+    orderProcessing.value = true
+    createdOrder.value = null
     orderDialogVisible.value = true
     sp.value.availStock = Math.max(0, sp.value.availStock - 1)
+    // 轮询查询订单结果
+    await pollSeckillOrder(sp.value.id)
   } catch(e) {
     ElMessage.error(e.message || '秒杀失败，请重试')
   } finally {
     buying.value = false
   }
+}
+
+/** 轮询查询秒杀订单，最多 30 次（约 30 秒） */
+async function pollSeckillOrder(seckillProductId) {
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 1000))
+    if (!orderDialogVisible.value) return
+    try {
+      const res = await getSeckillOrderApi(seckillProductId)
+      if (res.data) {
+        createdOrder.value = res.data
+        orderProcessing.value = false
+        return
+      }
+    } catch (_) { /* 订单尚未创建，继续轮询 */ }
+  }
+  orderProcessing.value = false
+  ElMessage.warning('订单处理超时，请在"我的订单"中查看')
 }
 
 async function handlePay() {

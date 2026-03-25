@@ -34,6 +34,14 @@
           AND status != 2
     </select>
 
+    <select id="findByUserIdAndProductId" resultMap="OrderRM">
+        SELECT * FROM `order`
+        WHERE user_id = #{userId} AND product_id = #{productId}
+          AND product_type = 1
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `order`
             (order_no, user_id, product_id, product_type, product_name,

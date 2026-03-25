@@ -8,6 +8,7 @@ import com.seckill.model.dto.PlaceOrderDTO;
 import com.seckill.model.entity.Order;
 import com.seckill.model.entity.Product;
 import com.seckill.service.OrderService;
+import com.seckill.utils.RedisUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,12 +24,17 @@ public class OrderServiceImpl implements OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderServiceImpl.class);
 
+    private static final String PRODUCT_LIST_KEY   = "product:list";
+    private static final String PRODUCT_KEY_PREFIX = "product:detail:";
+
     private final OrderMapper   orderMapper;
     private final ProductMapper productMapper;
+    private final RedisUtils    redisUtils;
 
-    public OrderServiceImpl(OrderMapper orderMapper, ProductMapper productMapper) {
+    public OrderServiceImpl(OrderMapper orderMapper, ProductMapper productMapper, RedisUtils redisUtils) {
         this.orderMapper   = orderMapper;
         this.productMapper = productMapper;
+        this.redisUtils    = redisUtils;
     }
 
     // ── 普通商品下单：写操作，走主库 ──────────────────────────────────
@@ -57,6 +63,11 @@ public class OrderServiceImpl implements OrderService {
         orderMapper.insert(order);
 
         log.info("普通下单成功 userId={} productId={} orderNo={}", userId, p.getId(), order.getOrderNo());
+
+        // 清除商品缓存，确保刷新列表时看到最新库存
+        redisUtils.delete(PRODUCT_LIST_KEY);
+        redisUtils.delete(PRODUCT_KEY_PREFIX + p.getId());
+
         return order;
     }
 
@@ -88,16 +99,19 @@ public class OrderServiceImpl implements OrderService {
         orderMapper.updateStatus(order.getId(), 2);
         if (order.getProductType() == 0) {
             productMapper.increaseStock(order.getProductId(), order.getQuantity());
+            // 清除商品缓存，确保库存回滚后刷新可见
+            redisUtils.delete(PRODUCT_LIST_KEY);
+            redisUtils.delete(PRODUCT_KEY_PREFIX + order.getProductId());
         }
         order.setStatus(2);
         return order;
     }
 
-    // ── 查询我的订单：读操作，走从库 ────────────────────────────────
+    // ── 查询我的订单：走主库（下单后立即可见，避免主从延迟）────────
     @Override
-    @DS(DataSourceType.SLAVE)
+    @DS(DataSourceType.MASTER)
     public List<Order> getMyOrders(Long userId) {
-        log.info("[RW-Split] getMyOrders userId={} → SLAVE DB", userId);
+        log.info("[RW-Split] getMyOrders userId={} → MASTER DB", userId);
         return orderMapper.findByUserId(userId);
     }
 

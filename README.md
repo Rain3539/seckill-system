@@ -5,12 +5,31 @@
 | 层次 | 技术 |
 |------|------|
 | 后端 | Spring Boot 3.2 + MyBatis + Maven |
-| 数据库 | MySQL 8.0 |
+| 数据库 | MySQL 8.0（主从读写分离） |
 | 缓存 | Redis 7（分布式缓存 + 秒杀防超卖） |
+| 消息队列 | Kafka 7.5（KRaft 模式，削峰填谷） |
 | 前端 | Vue 3 + Element Plus + Vite |
 | 代理 | Nginx（负载均衡 + 动静分离） |
 | 容器 | Docker + Docker Compose |
 | 认证 | JWT |
+
+---
+
+
+## 快速启动
+
+```bash
+# 1. 构建前端
+cd frontend && npm install && npm run build && cd ..
+
+# 2. 启动所有容器
+docker-compose up -d --build
+
+# 3. 查看日志
+docker-compose logs -f backend-1 backend-2
+```
+
+访问：http://localhost
 
 ---
 
@@ -52,10 +71,11 @@ order（统一订单表）
 ### 秒杀商品（只显示在秒杀专区）
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET  | /api/seckill/list      | 秒杀商品列表 |
-| GET  | /api/seckill/{id}      | 秒杀商品详情 |
-| POST | /api/seckill/do        | 执行秒杀（需登录）|
-| POST | /api/seckill/warmup/{id} | 手动预热库存 |
+| GET  | /api/seckill/list              | 秒杀商品列表 |
+| GET  | /api/seckill/{id}              | 秒杀商品详情 |
+| POST | /api/seckill/do                | 执行秒杀（异步，返回排队结果）|
+| GET  | /api/seckill/order/{spId}      | 查询秒杀订单结果（前端轮询）|
+| POST | /api/seckill/warmup/{id}       | 手动预热库存 |
 
 ### 订单
 | 方法 | 路径 | 说明 |
@@ -94,22 +114,56 @@ order（统一订单表）
 动态请求 (/api/*)     → 代理到后端集群，禁止缓存
 ```
 
+
+
 ---
 
-## 快速启动
+## 消息队列设计（Kafka 削峰填谷）
 
-```bash
-# 1. 构建前端
-cd frontend && npm install && npm run build && cd ..
+### 架构概述
 
-# 2. 启动所有容器
-docker-compose up -d --build
+秒杀场景瞬时并发极高，同步执行"Redis 预减 → 写 MySQL → 返回用户"会导致数据库连接池耗尽。引入 Kafka 将 DB 写操作异步化，实现削峰填谷。
 
-# 3. 查看日志
-docker-compose logs -f backend-1 backend-2
+```
+用户请求 → Redis DECR 预减 + SETNX 幂等 → Kafka 异步缓冲 → 消费者写 MySQL（乐观锁）
+                                              ↓
+                                    前端轮询 GET /seckill/order/{spId} 获取订单结果
 ```
 
-访问：http://localhost
+### 采用技术
+
+- **消息队列**：Apache Kafka 7.5（KRaft 模式，无 ZooKeeper）
+- **Topic**：`seckill-order`，3 分区 1 副本，支持并行消费
+- **消息 Key**：`userId:seckillProductId`，保证同用户同商品消息有序
+- **消息体**：`SeckillOrderMessage`，含商品名称和秒杀价快照字段
+
+### 防超卖三道防线
+
+| 层级 | 机制 | 作用 |
+|------|------|------|
+| 第 1 层 | Redis DECR 原子预减 | 内存级拦截，响应 < 1ms，拦截 99% 无效请求 |
+| 第 2 层 | Redis SETNX 防重复 | 每人每商品限购 1 次 |
+| 第 3 层 | MySQL 乐观锁 version | 兜底防止并发超卖 |
+
+### 生产者配置
+
+- `acks: all` — 所有副本确认，保证可靠投递
+- `retries: 3` — 失败自动重试
+- `enable.idempotence: true` — 幂等生产者，防重复发送
+
+### 消费者配置
+
+- `enable-auto-commit: false` + `ack-mode: manual_immediate` — 手动提交 offset
+- `@Transactional` — 事务保证，失败不 ACK 触发 Kafka 重试
+- 消费失败时回滚 Redis 预扣库存（`INCRBY`），避免库存丢失
+
+### 前端适配
+
+秒杀下单改为异步后，前端采用轮询模式：POST `/seckill/do` 立即返回 `{messageId, status: "PROCESSING"}`，前端每秒轮询 GET `/seckill/order/{spId}`，最多 30 秒，获取订单结果后弹窗展示。
+
+### 详细设计文档
+
+完整的设计说明（含架构图、代码示例、配置详解、文件清单）请参阅：[Kafka消息队列设计.md](Kafka消息队列设计.md)
 
 ---
 
@@ -181,9 +235,9 @@ docker-compose up -d --build
 ---
 
 
-## 前端界面
+## 前端页面
 
-### 登录界面
+### 登录页面
 
 ![!\[alt text\](登录界面.png)](说明图片/登录界面.png)
 
