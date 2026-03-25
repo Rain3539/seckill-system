@@ -1,13 +1,30 @@
-# ⚡ 商品库存与秒杀系统
+# 商品库存与秒杀系统
+
+基于 Spring Boot + Redis + Kafka 构建的高并发商品与秒杀平台，支持双后端实例负载均衡、防超卖三道防线、消息队列异步削峰等核心特性。
+
+---
+
+## 目录
+
+1. [技术栈](#技术栈)
+2. [系统架构](#系统架构)
+3. [数据库设计](#数据库设计)
+4. [核心设计](#核心设计)
+5. [API 接口](#api-接口)
+6. [快速启动](#快速启动)
+7. [压测指南](#压测指南)
+8. [前端页面](#前端页面)
+
+---
 
 ## 技术栈
 
 | 层次 | 技术 |
 |------|------|
-| 后端 | Spring Boot 3.2 + MyBatis + Maven |
+| 后端框架 | Spring Boot 3.2 + MyBatis + Maven |
 | 数据库 | MySQL 8.0（主从读写分离） |
-| 缓存 | Redis 7（分布式缓存 + 秒杀防超卖） |
-| 消息队列 | Kafka 7.5（KRaft 模式，削峰填谷） |
+| 缓存 | Redis 7（分布式缓存 + 原子预减库存） |
+| 消息队列 | Kafka 3.x（KRaft 模式，无 ZooKeeper） |
 | 前端 | Vue 3 + Element Plus + Vite |
 | 代理 | Nginx（负载均衡 + 动静分离） |
 | 容器 | Docker + Docker Compose |
@@ -15,26 +32,22 @@
 
 ---
 
+## 系统架构
 
-## 快速启动
+![alt text](说明图片/系统架构.png)
 
-```bash
-# 1. 构建前端
-cd frontend && npm install && npm run build && cd ..
 
-# 2. 启动所有容器
-docker-compose up -d --build
+**普通商品下单**：同步链路，Redis 缓存加速读，MySQL 持久化写。
 
-# 3. 查看日志
-docker-compose logs -f backend-1 backend-2
-```
-
-访问：http://localhost
+**秒杀商品下单**：异步链路，Redis 原子预减拦截高并发，通过 Kafka 异步写入 MySQL，前端轮询获取结果。
 
 ---
 
-## 数据库 ER 设计
+## 数据库设计
+
 ![!\[alt text\](数据库er图.png)](说明图片/数据库er图.png)
+
+
 ```
 user（用户表）
   id | username | password | email | phone | status
@@ -46,194 +59,203 @@ seckill_product（秒杀商品表）
   id | name | description | origin_price | seckill_price
    | total_stock | avail_stock | locked_stock | version
    | start_time | end_time | status
+  -- version 字段用于乐观锁，start_time/end_time 控制秒杀窗口
 
 order（统一订单表）
-  id | order_no | user_id | product_id | product_type(0普通/1秒杀)
+  id | order_no | user_id | product_id | product_type（0普通/1秒杀）
    | product_name | quantity | unit_price | amount | status
 ```
 
----
-
-## API 接口文档
-
-### 用户
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /api/user/register | 注册 |
-| POST | /api/user/login    | 登录 |
-
-### 普通商品（只显示在商品列表页）
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/product/list  | 商品列表（Redis缓存）|
-| GET | /api/product/{id}  | 商品详情（防穿透/击穿/雪崩）|
-
-### 秒杀商品（只显示在秒杀专区）
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET  | /api/seckill/list              | 秒杀商品列表 |
-| GET  | /api/seckill/{id}              | 秒杀商品详情 |
-| POST | /api/seckill/do                | 执行秒杀（异步，返回排队结果）|
-| GET  | /api/seckill/order/{spId}      | 查询秒杀订单结果（前端轮询）|
-| POST | /api/seckill/warmup/{id}       | 手动预热库存 |
-
-### 订单
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/order/my        | 我的订单（需登录）|
-| GET | /api/order/{orderNo} | 订单详情 |
+普通商品与秒杀商品使用**独立表**，原因如下：秒杀商品需要专有字段（时间窗口、乐观锁版本号、锁定库存），若合并到同一张表会引入大量空值，且秒杀写入频率远高于普通商品，分表可避免热点锁竞争。
 
 ---
 
-## 核心设计说明
+## 核心设计
 
-### 1. 商品分离设计
-- `product` 表：普通商品，只在**商品列表页**展示
-- `seckill_product` 表：秒杀商品，只在**秒杀专区**展示
-  - 含 `start_time` / `end_time`：控制秒杀时间窗口
-  - 含 `version` 乐观锁字段：防止并发超卖
-  - 每人每件秒杀商品限购1次（Redis SETNX实现）
+### 1. 防超卖三道防线
 
-### 2. 秒杀防超卖三道防线
+秒杀场景下，防超卖按层级依次拦截：
+
 ```
-① Redis DECR 原子预减库存  → 拦截99%高并发，不打DB
-② Redis SETNX 防重复下单   → 每人每商品限购1次
-③ MySQL 乐观锁 version     → 兜底防止并发写入超卖
+第 1 层：Redis DECR 原子预减
+    └── 内存级操作，响应 < 1ms，拦截 99% 的无效并发请求
+        库存不足时直接返回，不进入后续流程
+
+第 2 层：Redis SETNX 防重复下单
+    └── key = "seckill:uid:{userId}:sp:{spId}"
+        每人每件秒杀商品限购 1 次，重复请求直接拒绝
+
+第 3 层：MySQL 乐观锁（version 字段）
+    └── UPDATE seckill_product
+        SET avail_stock = avail_stock - 1, version = version + 1
+        WHERE id = ? AND version = ? AND avail_stock > 0
+        并发写入时只有一个事务能成功，兜底防止数据层超卖
 ```
+
+消费者写入失败时，回滚第 1 层的 Redis 预扣（`INCRBY`），避免库存永久丢失。
+
+### 2. Kafka 异步削峰
+
+秒杀瞬时并发极高，若同步执行"预减 → 写 MySQL → 返回"，数据库连接池会迅速耗尽。Kafka 将 DB 写操作异步化：
+
+```
+用户请求
+   │
+   ├─① Redis DECR 预减库存（同步，< 1ms）
+   ├─② Redis SETNX 幂等校验（同步，< 1ms）
+   ├─③ 发送消息到 Kafka（同步，< 5ms）
+   └─④ 立即返回 {status: "PROCESSING"}（用户不等待 DB）
+
+Kafka Consumer（异步）
+   ├─ 写入 MySQL（乐观锁）
+   ├─ 成功 → 手动 ACK，订单状态更新为"已创建"
+   └─ 失败 → 不 ACK，触发重试；回滚 Redis 预扣库存
+```
+
+前端采用轮询模式：每秒请求 `GET /api/seckill/order/{spId}`，最多等待 30 秒。
+
+**Kafka Topic 配置：**
+
+| 配置项 | 值 | 原因 |
+|--------|-----|------|
+| Topic | `seckill-order` | 秒杀订单专用通道 |
+| 分区数 | 3 | 支持 3 个消费者并行处理 |
+| 副本数 | 1 | 开发环境单节点，生产建议改为 3 |
+| 消息 Key | `userId:spId` | 同一用户同一商品的消息路由到同一分区，保证顺序 |
+| `acks` | `all` | 所有副本确认后才返回，防消息丢失 |
+| `enable.idempotence` | `true` | 幂等生产者，网络重传不产生重复消息 |
+| offset 提交 | 手动（`manual_immediate`） | 处理成功后才移动消费位点，失败自动重试 |
 
 ### 3. 分布式缓存（防三大问题）
-```
-【防穿透】查询不存在的商品 → 缓存空值"NULL"，TTL=5min
-【防击穿】热点key过期     → Redis分布式锁，只放一个线程重建缓存
-【防雪崩】大量key同时过期  → 过期时间加随机抖动 ±5min
-```
+
+| 问题 | 场景 | 解决方案 |
+|------|------|---------|
+| 缓存穿透 | 查询不存在的商品，每次都打到 DB | 缓存空值 `"NULL"`，TTL = 5 分钟 |
+| 缓存击穿 | 热点 key 过期，瞬间大量请求同时重建缓存 | Redis 分布式锁，只放一个线程重建，其余等待 |
+| 缓存雪崩 | 大量 key 同时过期，DB 压力骤增 | 过期时间加随机抖动 ±5 分钟，错开过期时间 |
 
 ### 4. Nginx 动静分离
-```
-静态资源 (JS/CSS/图片) → Nginx直接服务，强缓存30天（文件名含hash）
-动态请求 (/api/*)     → 代理到后端集群，禁止缓存
+
+```nginx
+# 静态资源（文件名含 hash，内容变更时 URL 自动变化）
+location /static/ {
+    root /usr/share/nginx/html;
+    add_header Cache-Control "public, max-age=7776000, immutable";  # 90 天强缓存
+}
+
+# 动态 API
+location /api/ {
+    proxy_pass http://backend_cluster;
+    add_header Cache-Control "no-store";  # 禁止缓存
+}
 ```
 
-
+因为静态资源文件名含内容 hash，浏览器可以放心强缓存——文件内容变了，文件名也会变，不存在拿到旧版本的问题。
 
 ---
 
-## 消息队列设计（Kafka 削峰填谷）
+## API 接口
 
-### 架构概述
+### 用户
 
-秒杀场景瞬时并发极高，同步执行"Redis 预减 → 写 MySQL → 返回用户"会导致数据库连接池耗尽。引入 Kafka 将 DB 写操作异步化，实现削峰填谷。
-
-```
-用户请求 → Redis DECR 预减 + SETNX 幂等 → Kafka 异步缓冲 → 消费者写 MySQL（乐观锁）
-                                              ↓
-                                    前端轮询 GET /seckill/order/{spId} 获取订单结果
-```
-
-### 采用技术
-
-- **消息队列**：Apache Kafka 7.5（KRaft 模式，无 ZooKeeper）
-- **Topic**：`seckill-order`，3 分区 1 副本，支持并行消费
-- **消息 Key**：`userId:seckillProductId`，保证同用户同商品消息有序
-- **消息体**：`SeckillOrderMessage`，含商品名称和秒杀价快照字段
-
-### 防超卖三道防线
-
-| 层级 | 机制 | 作用 |
+| 方法 | 路径 | 说明 |
 |------|------|------|
-| 第 1 层 | Redis DECR 原子预减 | 内存级拦截，响应 < 1ms，拦截 99% 无效请求 |
-| 第 2 层 | Redis SETNX 防重复 | 每人每商品限购 1 次 |
-| 第 3 层 | MySQL 乐观锁 version | 兜底防止并发超卖 |
+| POST | `/api/user/register` | 注册 |
+| POST | `/api/user/login` | 登录，返回 JWT |
 
-### 生产者配置
+### 普通商品
 
-- `acks: all` — 所有副本确认，保证可靠投递
-- `retries: 3` — 失败自动重试
-- `enable.idempotence: true` — 幂等生产者，防重复发送
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/product/list` | 商品列表（Redis 缓存） |
+| GET | `/api/product/{id}` | 商品详情（防穿透/击穿/雪崩） |
 
-### 消费者配置
+### 秒杀商品
 
-- `enable-auto-commit: false` + `ack-mode: manual_immediate` — 手动提交 offset
-- `@Transactional` — 事务保证，失败不 ACK 触发 Kafka 重试
-- 消费失败时回滚 Redis 预扣库存（`INCRBY`），避免库存丢失
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/seckill/list` | 秒杀商品列表 |
+| GET | `/api/seckill/{id}` | 秒杀商品详情（含倒计时、库存进度） |
+| POST | `/api/seckill/do` | 执行秒杀，异步，立即返回排队状态 |
+| GET | `/api/seckill/order/{spId}` | 查询秒杀结果（前端轮询） |
+| POST | `/api/seckill/warmup/{id}` | 手动预热库存到 Redis |
 
-### 前端适配
+### 订单
 
-秒杀下单改为异步后，前端采用轮询模式：POST `/seckill/do` 立即返回 `{messageId, status: "PROCESSING"}`，前端每秒轮询 GET `/seckill/order/{spId}`，最多 30 秒，获取订单结果后弹窗展示。
-
-### 详细设计文档
-
-完整的设计说明（含架构图、代码示例、配置详解、文件清单）请参阅：[Kafka消息队列设计.md](Kafka消息队列设计.md)
-
----
-
-## JMeter 压测指南
-
-### 压测静态资源（动静分离验证）
-- URL: `http://localhost/assets/index-xxx.js`（从浏览器F12获取实际文件名）
-- 预期：响应时间 < 5ms，响应头含 `Cache-Control: public, max-age=2592000`
-
-### 压测动态 API（负载均衡验证）
-- URL: `http://localhost/api/instance`
-- 预期：响应中 instanceId 交替出现 backend-1 / backend-2
-
-### 压测秒杀接口（高并发防超卖验证）
-- URL: `POST http://localhost/api/seckill/do`
-- Body: `{"seckillProductId": 1, "quantity": 1}`
-- Header: `Authorization: Bearer <token>`
-- 压测后查验：`SELECT avail_stock FROM seckill_product WHERE id=1` 不得为负数
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/order/place` | 普通商品下单 |
+| GET | `/api/order/my` | 我的订单（需登录） |
+| GET | `/api/order/{orderNo}` | 订单详情 |
+| POST | `/api/order/pay/{no}` | 模拟支付 |
+| POST | `/api/order/cancel/{no}` | 取消订单（普通商品自动回滚库存） |
 
 ---
 
-## 切换负载均衡算法
+## 快速启动
 
-编辑 `nginx/conf.d/default.conf` 中的 `upstream` 块，然后：
+**环境要求：** Docker、Docker Compose、Node.js 18+
+
+```bash
+# 1. 构建前端静态资源
+cd frontend && npm install && npm run build && cd ..
+
+# 2. 启动所有容器（首次启动或修改了 Docker 相关配置时使用）
+docker-compose up -d --build
+
+# 3. 查看后端日志
+docker-compose logs -f backend-1 backend-2
+```
+
+访问地址：http://localhost
+
+**注意：** 如果修改了 `nginx/static/` 下的静态文件或新增了 Docker volume，需要先销毁旧容器再重建：
+
+```bash
+docker-compose down -v
+cd frontend && npm run build && cd ..
+docker-compose up -d --build
+```
+
+### 切换 Nginx 负载均衡算法
+
+编辑 `nginx/conf.d/default.conf` 中的 `upstream` 块（默认轮询，可改为 `least_conn`、`ip_hash` 等），然后热重载：
+
 ```bash
 docker-compose exec nginx nginx -s reload
 ```
 
 ---
 
-## v3.1 新增功能
+## 压测指南
 
-### 商品图片（动静分离）
-- 图片文件存放于 `nginx/static/images/`，由 Nginx 直接服务，**不经过后端**
-- URL 格式：`http://localhost/static/images/product_1.svg`
-- Nginx 配置强缓存 90 天，`Cache-Control: public, max-age=7776000, immutable`
-- 响应头包含 `X-Static-Type: product-image` 便于 JMeter 验证
+使用 JMeter 验证各模块性能。
 
-### 普通商品下单流程
+### 验证动静分离
+
+- **URL：** `http://localhost/static/images/product_1.svg`（或从浏览器 F12 获取实际静态资源路径）
+- **预期：** 响应时间 < 5ms，响应头含 `Cache-Control: public, max-age=...`，`X-Static-Type: product-image`
+
+### 验证负载均衡
+
+- **URL：** `GET http://localhost/api/instance`
+- **预期：** 响应中 `instanceId` 交替出现 `backend-1` / `backend-2`
+
+### 验证秒杀防超卖
+
+- **URL：** `POST http://localhost/api/seckill/do`
+- **请求体：** `{"seckillProductId": 1, "quantity": 1}`
+- **Header：** `Authorization: Bearer <token>`（先调用登录接口获取）
+- **并发配置：** 建议 500~1000 线程，循环 1 次，模拟瞬时抢购
+
+压测结束后，查询数据库验证库存不为负数：
+
+```sql
+SELECT avail_stock, locked_stock, total_stock
+FROM seckill_product
+WHERE id = 1;
+-- avail_stock 应 >= 0，avail_stock + locked_stock 应 = total_stock
 ```
-商品列表 → 点击【立即下单】→ 下单成功弹窗 → 点击【立即支付】→ 跳转我的订单
-商品列表 → 点击【查看详情】→ 详情页选数量 → 下单 → 支付
-```
-
-### 秒杀商品详情页
-- 倒计时（实时刷新，精确到秒）
-- 库存进度条（颜色随剩余量变化）
-- 秒杀成功后弹窗支付
-
-### 我的订单支付/取消
-- 【立即支付】按钮：模拟支付，直接改状态为"已支付"
-- 【取消订单】：取消后普通商品库存自动回滚
-- 待支付数量徽标显示在导航栏
-
-### 新增 API
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /api/order/place       | 普通商品下单 |
-| POST | /api/order/pay/{no}    | 支付订单（模拟）|
-| POST | /api/order/cancel/{no} | 取消订单 |
-
-### 操作命令（重要：因挂载新卷需重建容器）
-```powershell
-docker-compose down -v
-cd frontend && npm run build && cd ..
-docker-compose up -d --build
-```
-
----
-
 
 ## 前端页面
 
