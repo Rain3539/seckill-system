@@ -10,8 +10,18 @@ public interface SeckillProductMapper {
     SeckillProduct findById(@Param("id") Long id);
     List<SeckillProduct> findAllActive();
 
-    /** 乐观锁扣减库存，防超卖核心 */
+    /** TCC Try: 乐观锁预留库存 (avail->locked)，防超卖核心 */
     int decreaseStock(@Param("id") Long id,
                       @Param("quantity") Integer quantity,
                       @Param("version") Integer version);
+
+    /** TCC Confirm: 确认扣减 (locked_stock减少，永久消费) */
+    int confirmStock(@Param("id") Long id,
+                     @Param("quantity") Integer quantity,
+                     @Param("version") Integer version);
+
+    /** TCC Cancel: 释放预留 (locked_stock回退到avail_stock) */
+    int cancelStock(@Param("id") Long id,
+                    @Param("quantity") Integer quantity,
+                    @Param("version") Integer version);
 }

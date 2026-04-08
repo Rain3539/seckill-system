@@ -1,6 +1,8 @@
 # 商品库存与秒杀系统
 
-基于 Spring Boot + Redis + Kafka 构建的高并发商品与秒杀平台，支持双后端实例负载均衡、防超卖三道防线、消息队列异步削峰等核心特性。
+基于 Spring Boot + Redis + Kafka 构建的高并发商品与秒杀平台，支持双后端实例负载均衡、TCC 分布式事务、防超卖四层防线、消息队列异步削峰等核心特性。
+
+详细说明请看“作业说明”文件夹。
 
 ---
 
@@ -39,7 +41,7 @@
 
 **普通商品下单**：同步链路，Redis 缓存加速读，MySQL 持久化写。
 
-**秒杀商品下单**：异步链路，Redis 原子预减拦截高并发，通过 Kafka 异步写入 MySQL，前端轮询获取结果。
+**秒杀商品下单**：异步链路，Redis 原子预减拦截高并发，通过 Kafka 异步写入 MySQL，采用 TCC（Try-Confirm-Cancel）补偿型事务保障库存与订单的强一致性，前端轮询获取结果。
 
 ---
 
@@ -63,7 +65,9 @@ seckill_product（秒杀商品表）
 
 order（统一订单表）
   id | order_no | user_id | product_id | product_type（0普通/1秒杀）
-   | product_name | quantity | unit_price | amount | status
+   | product_name | quantity | unit_price | amount | status | timeout_at
+  -- status: -1TCC预留中 0待支付 1已支付 2已取消
+  -- timeout_at: TCC超时时间，用于自动取消未支付的秒杀订单
 ```
 
 普通商品与秒杀商品使用**独立表**，原因如下：秒杀商品需要专有字段（时间窗口、乐观锁版本号、锁定库存），若合并到同一张表会引入大量空值，且秒杀写入频率远高于普通商品，分表可避免热点锁竞争。
@@ -72,7 +76,7 @@ order（统一订单表）
 
 ## 核心设计
 
-### 1. 防超卖三道防线
+### 1. 防超卖四层防线 + TCC 分布式事务
 
 秒杀场景下，防超卖按层级依次拦截：
 
@@ -85,12 +89,19 @@ order（统一订单表）
     └── key = "seckill:uid:{userId}:sp:{spId}"
         每人每件秒杀商品限购 1 次，重复请求直接拒绝
 
-第 3 层：MySQL 乐观锁（version 字段）
-    └── UPDATE seckill_product
-        SET avail_stock = avail_stock - 1, version = version + 1
-        WHERE id = ? AND version = ? AND avail_stock > 0
-        并发写入时只有一个事务能成功，兜底防止数据层超卖
+第 3 层：MySQL TCC Try 乐观锁预留库存
+    └── avail_stock -= qty, locked_stock += qty（乐观锁 version）
+        将库存从"可用"转移到"锁定"，为后续 Confirm/Cancel 预留状态
+
+第 4 层：MySQL TCC Confirm 乐观锁永久扣减
+    └── locked_stock -= qty（乐观锁 version）
+        支付时永久消费锁定库存，保证库存不超卖
 ```
+
+秒杀订单采用 **TCC（Try-Confirm-Cancel）补偿型事务**：
+- **Try 阶段**：Kafka 消费者预留库存（avail→locked）+ 创建 TRYING 状态订单
+- **Confirm 阶段**：用户支付时永久扣减库存，订单状态 TRYING→PENDING→PAID
+- **Cancel 阶段**：用户取消或超时 15 分钟自动释放库存（locked→avail），Redis 回滚
 
 消费者写入失败时，回滚第 1 层的 Redis 预扣（`INCRBY`），避免库存永久丢失。
 
@@ -188,7 +199,7 @@ location /api/ {
 | GET | `/api/order/my` | 我的订单（需登录） |
 | GET | `/api/order/{orderNo}` | 订单详情 |
 | POST | `/api/order/pay/{no}` | 模拟支付 |
-| POST | `/api/order/cancel/{no}` | 取消订单（普通商品自动回滚库存） |
+| POST | `/api/order/cancel/{no}` | 取消订单（普通商品回滚库存，秒杀订单触发 TCC Cancel） |
 
 ---
 
@@ -197,8 +208,11 @@ location /api/ {
 **环境要求：** Docker、Docker Compose、Node.js 18+
 
 ```bash
-# 1. 构建前端静态资源
-cd frontend && npm install && npm run build && cd ..
+# 1. 安装前端依赖并构建静态资源
+cd frontend
+npm install
+npm run build
+cd ..
 
 # 2. 启动所有容器（首次启动或修改了 Docker 相关配置时使用）
 docker-compose up -d --build

@@ -231,18 +231,19 @@ async function handleSeckill() {
 /** 轮询查询秒杀订单，最多 30 次（约 30 秒） */
 async function pollSeckillOrder(seckillProductId) {
   for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 1000))
+    await new Promise(r => setTimeout(r, 500))
     if (!orderDialogVisible.value) return
     try {
       const res = await getSeckillOrderApi(seckillProductId)
-      if (res.data) {
+      if (res.data && res.data.orderNo) {
         createdOrder.value = res.data
         orderProcessing.value = false
         return
       }
     } catch (_) { /* 订单尚未创建，继续轮询 */ }
   }
-  orderProcessing.value = false
+  // 超时：关闭弹窗并提示
+  orderDialogVisible.value = false
   ElMessage.warning('订单处理超时，请在"我的订单"中查看')
 }
 

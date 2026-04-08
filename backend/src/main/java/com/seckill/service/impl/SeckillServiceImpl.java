@@ -122,7 +122,7 @@ public class SeckillServiceImpl implements SeckillService {
      * 查询秒杀订单结果
      */
     @Override
-    @DS(DataSourceType.SLAVE)
+    @DS(DataSourceType.MASTER)
     public Order getSeckillOrder(Long userId, Long seckillProductId) {
         return orderMapper.findByUserIdAndProductId(userId, seckillProductId);
     }

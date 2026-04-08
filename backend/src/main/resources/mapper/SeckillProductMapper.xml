@@ -31,7 +31,7 @@
         ORDER BY start_time ASC
     </select>
 
-    <!-- 乐观锁扣减，version 不匹配则更新0行，上层捕获重试 -->
+    <!-- TCC Try: 乐观锁预留库存 (avail_stock -> locked_stock)，version 不匹配则更新0行 -->
     <update id="decreaseStock">
         UPDATE seckill_product
         SET avail_stock  = avail_stock  - #{quantity},
@@ -40,6 +40,27 @@
         WHERE id = #{id}
           AND avail_stock >= #{quantity}
           AND version     = #{version}
+    </update>
+
+    <!-- TCC Confirm: 确认扣减，locked_stock 转为已消费，version+1 -->
+    <update id="confirmStock">
+        UPDATE seckill_product
+        SET locked_stock = locked_stock - #{quantity},
+            version      = version + 1
+        WHERE id = #{id}
+          AND locked_stock >= #{quantity}
+          AND version      = #{version}
+    </update>
+
+    <!-- TCC Cancel: 释放预留，locked_stock 回退到 avail_stock，version+1 -->
+    <update id="cancelStock">
+        UPDATE seckill_product
+        SET locked_stock = locked_stock - #{quantity},
+            avail_stock  = avail_stock  + #{quantity},
+            version      = version + 1
+        WHERE id = #{id}
+          AND locked_stock >= #{quantity}
+          AND version      = #{version}
     </update>
 
 </mapper>

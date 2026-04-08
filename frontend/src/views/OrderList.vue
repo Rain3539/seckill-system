@@ -67,7 +67,7 @@
           <!-- 订单底 -->
           <div class="order-footer">
             <span class="order-time">{{ fmtTime(order.createdAt) }}</span>
-            <div class="order-actions" v-if="order.status === 0">
+            <div class="order-actions" v-if="order.status === 0 || order.status === -1">
               <el-button
                 type="primary" size="small"
                 :loading="payingNo === order.orderNo"
@@ -118,13 +118,13 @@ const filteredOrders = computed(() => {
   switch (activeTab.value) {
     case 'seckill': return orders.value.filter(o => o.productType === 1)
     case 'normal':  return orders.value.filter(o => o.productType === 0)
-    case 'pending': return orders.value.filter(o => o.status === 0)
+    case 'pending': return orders.value.filter(o => o.status === 0 || o.status === -1)
     case 'paid':    return orders.value.filter(o => o.status === 1)
     default:        return orders.value
   }
 })
 
-const pendingCount = computed(() => orders.value.filter(o => o.status === 0).length)
+const pendingCount = computed(() => orders.value.filter(o => o.status === 0 || o.status === -1).length)
 
 onMounted(fetchOrders)
 
@@ -167,8 +167,18 @@ async function handleCancel(order) {
   }
 }
 
-const statusLabel = s => ({ 0:'待支付', 1:'已支付', 2:'已取消' }[s] ?? '未知')
-const statusType  = s => ({ 0:'warning', 1:'success', 2:'info' }[s] ?? '')
+const statusLabel = s => {
+  if (s === -1 || s === 0) return '待支付'
+  if (s === 1) return '已支付'
+  if (s === 2) return '已取消'
+  return '未知'
+}
+const statusType = s => {
+  if (s === -1 || s === 0) return 'warning'
+  if (s === 1) return 'success'
+  if (s === 2) return 'info'
+  return ''
+}
 
 function fmtTime(t) {
   return t ? new Date(t).toLocaleString('zh-CN') : '-'

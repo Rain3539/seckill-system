@@ -42,6 +42,10 @@ public class RedisUtils {
         return redisTemplate.opsForValue().increment(key);
     }
 
+    public Long increment(String key, long delta) {
+        return redisTemplate.opsForValue().increment(key, delta);
+    }
+
     /**
      * 分布式锁 - 设置
      */

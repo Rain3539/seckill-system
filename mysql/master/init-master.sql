@@ -61,12 +61,14 @@ CREATE TABLE IF NOT EXISTS `order` (
     `quantity`     INT            NOT NULL DEFAULT 1,
     `unit_price`   DECIMAL(10,2)  NOT NULL,
     `amount`       DECIMAL(10,2)  NOT NULL,
-    `status`       TINYINT        NOT NULL DEFAULT 0 COMMENT '0待支付 1已支付 2已取消',
+    `status`       TINYINT        NOT NULL DEFAULT 0 COMMENT '-1TCC预留中 0待支付 1已支付 2已取消',
+    `timeout_at`   DATETIME       DEFAULT NULL COMMENT 'TCC超时时间，超过此时间未confirm则自动cancel',
     `created_at`   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_order_no` (`order_no`),
-    KEY `idx_user_id` (`user_id`)
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_status_timeout` (`status`, `timeout_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
 
 -- 普通商品初始数据

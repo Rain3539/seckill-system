@@ -15,6 +15,7 @@ import com.seckill.service.impl.OrderServiceImpl;
 import com.seckill.service.impl.UserServiceImpl;
 import com.seckill.utils.JwtUtils;
 import com.seckill.utils.RedisUtils;
+import com.seckill.service.tcc.TccTransactionCoordinator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,7 @@ class ServiceRwRoutingTest {
     private OrderMapper   orderMapper;
     private ProductMapper productMapper;
     private RedisUtils    redisUtils;
+    private TccTransactionCoordinator tccCoordinator;
     private BCryptPasswordEncoder passwordEncoder;
 
     /* ── 待测 Service（原始，未代理） ── */
@@ -61,10 +63,11 @@ class ServiceRwRoutingTest {
         orderMapper   = mock(OrderMapper.class);
         productMapper = mock(ProductMapper.class);
         redisUtils    = mock(RedisUtils.class);
+        tccCoordinator = mock(TccTransactionCoordinator.class);
         passwordEncoder = new BCryptPasswordEncoder();
 
         rawUserService  = new UserServiceImpl(userMapper, jwtUtils);
-        rawOrderService = new OrderServiceImpl(orderMapper, productMapper, redisUtils);
+        rawOrderService = new OrderServiceImpl(orderMapper, productMapper, redisUtils, tccCoordinator);
 
         // JwtUtils 返回假 token
         when(jwtUtils.generateToken(anyLong(), anyString())).thenReturn("fake-token");
