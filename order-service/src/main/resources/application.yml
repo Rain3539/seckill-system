@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: order-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  datasource:
+    master:
+      jdbc-url: ${MASTER_DATASOURCE_URL:jdbc:mysql://localhost:3310/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+      username: ${MASTER_DATASOURCE_USERNAME:order_user}
+      password: ${MASTER_DATASOURCE_PASSWORD:order123}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        pool-name: HikariMaster
+        minimum-idle: 5
+        maximum-pool-size: 20
+        connection-timeout: 30000
+        idle-timeout: 600000
+    slave:
+      jdbc-url: ${SLAVE_DATASOURCE_URL:jdbc:mysql://localhost:3311/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+      username: ${SLAVE_DATASOURCE_USERNAME:order_ro}
+      password: ${SLAVE_DATASOURCE_PASSWORD:order_ro123}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        pool-name: HikariSlave
+        minimum-idle: 5
+        maximum-pool-size: 20
+        connection-timeout: 30000
+        idle-timeout: 600000
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:redis123}
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.seckill.order.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: ${JWT_SECRET:seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
+  expiration: 86400000
+
+stock-service:
+  url: ${STOCK_SERVICE_URL:http://localhost:8081}
+
+app:
+  instance-id: ${INSTANCE_ID:order-local}
+
+logging:
+  level:
+    com.seckill.order: DEBUG
+    org.mybatis: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss} [${INSTANCE_ID:order}] [%thread] %-5level %logger{36} - %msg%n"

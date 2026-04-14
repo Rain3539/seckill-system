@@ -1,49 +1,53 @@
 version: '3.8'
 
 # ======================================================================
-# 秒杀系统 —— MySQL 读写分离版
+# 秒杀系统 —— 微服务架构（订单服务 + 库存服务）
 #
 # 架构：
-#   mysql-master (3306) ← 写库，backend 写操作路由到此
-#   mysql-slave  (3307) ← 读库，backend 读操作路由到此，binlog 主从同步
-#   redis        (6379)
-#   kafka        (9092) ← 异步订单处理，削峰填谷
-#   backend-1/2  (8081/8082) ← 双实例，均配置主从数据源
-#   nginx        (80) ← 反代 + 负载均衡
+#   stock-mysql-master (3308) ← stock_db 主库（写）
+#   stock-mysql-slave  (3309) ← stock_db 从库（读）
+#   order-mysql-master (3310) ← order_db 主库（写）
+#   order-mysql-slave  (3311) ← order_db 从库（读）
+#   redis              (6379) ← 共享缓存
+#   kafka              (9092) ← 异步订单处理
+#   stock-service-1/2  (8081/8083) ← 库存服务双实例
+#   order-service-1/2  (8082/8084) ← 订单服务双实例
+#   nginx              (80)   ← 反代 + 负载均衡
 #
 # 快速启动：
 #   docker-compose up -d
 #   # 等待 ~30s 让主从完成初始化，然后手动触发复制配置：
-#   docker-compose exec mysql-slave bash /docker-entrypoint-initdb.d/setup-replication.sh
+#   docker-compose exec stock-mysql-slave bash /docker-entrypoint-initdb.d/02-setup-replication.sh
+#   docker-compose exec order-mysql-slave bash /docker-entrypoint-initdb.d/02-setup-replication.sh
 # ======================================================================
 
 services:
 
-  # ── MySQL 主库（写）──────────────────────────────────────────────────
-  mysql-master:
+  # ── Stock MySQL 主库（写）──────────────────────────────────────────
+  stock-mysql-master:
     image: mysql:8.0
-    container_name: seckill-mysql-master
+    container_name: seckill-stock-mysql-master
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-character-set-client-handshake
       - --default-time-zone=+08:00
       - --default-authentication-plugin=mysql_native_password
-      - --server-id=1
+      - --server-id=10
       - --log-bin=mysql-bin
       - --binlog-format=ROW
       - --binlog-row-image=FULL
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: seckill_db
-      MYSQL_USER: seckill
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-seckill123}
+      MYSQL_DATABASE: stock_db
+      MYSQL_USER: stock
+      MYSQL_PASSWORD: ${STOCK_PASSWORD:-stock123}
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3308:3306"
     volumes:
-      - mysql_master_data:/var/lib/mysql
-      - ./mysql/master/init-master.sql:/docker-entrypoint-initdb.d/init-master.sql
+      - stock_master_data:/var/lib/mysql
+      - ./mysql/master/init-stock-master.sql:/docker-entrypoint-initdb.d/init-stock-master.sql
     networks:
       - seckill-net
     healthcheck:
@@ -53,34 +57,106 @@ services:
       retries: 10
       start_period: 40s
 
-  # ── MySQL 从库（读）──────────────────────────────────────────────────
-  mysql-slave:
+  # ── Stock MySQL 从库（读）──────────────────────────────────────────
+  stock-mysql-slave:
     image: mysql:8.0
-    container_name: seckill-mysql-slave
+    container_name: seckill-stock-mysql-slave
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-character-set-client-handshake
       - --default-time-zone=+08:00
       - --default-authentication-plugin=mysql_native_password
-      - --server-id=2
+      - --server-id=11
       - --relay-log=relay-bin
       - --log-slave-updates=ON
       - --read-only=ON
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: seckill_db
-      MYSQL_USER: seckill_ro
-      MYSQL_PASSWORD: ${SLAVE_PASSWORD:-seckill_ro123}
+      MYSQL_DATABASE: stock_db
+      MYSQL_USER: stock_ro
+      MYSQL_PASSWORD: ${STOCK_SLAVE_PASSWORD:-stock_ro123}
       TZ: Asia/Shanghai
     ports:
-      - "3307:3306"
+      - "3309:3306"
     volumes:
-      - mysql_slave_data:/var/lib/mysql
-      - ./mysql/slave/init-slave.sql:/docker-entrypoint-initdb.d/01-init-slave.sql
-      - ./mysql/slave/setup-replication.sh:/docker-entrypoint-initdb.d/02-setup-replication.sh
+      - stock_slave_data:/var/lib/mysql
+      - ./mysql/stock-slave/init-stock-slave.sql:/docker-entrypoint-initdb.d/01-init-stock-slave.sql
+      - ./mysql/stock-slave/setup-stock-replication.sh:/docker-entrypoint-initdb.d/02-setup-stock-replication.sh
     depends_on:
-      mysql-master:
+      stock-mysql-master:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ── Order MySQL 主库（写）──────────────────────────────────────────
+  order-mysql-master:
+    image: mysql:8.0
+    container_name: seckill-order-mysql-master
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --default-time-zone=+08:00
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=20
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: order_db
+      MYSQL_USER: order_user
+      MYSQL_PASSWORD: ${ORDER_PASSWORD:-order123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3310:3306"
+    volumes:
+      - order_master_data:/var/lib/mysql
+      - ./mysql/master/init-order-master.sql:/docker-entrypoint-initdb.d/init-order-master.sql
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  # ── Order MySQL 从库（读）──────────────────────────────────────────
+  order-mysql-slave:
+    image: mysql:8.0
+    container_name: seckill-order-mysql-slave
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --default-time-zone=+08:00
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=21
+      - --relay-log=relay-bin
+      - --log-slave-updates=ON
+      - --read-only=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: order_db
+      MYSQL_USER: order_ro
+      MYSQL_PASSWORD: ${ORDER_SLAVE_PASSWORD:-order_ro123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3311:3306"
+    volumes:
+      - order_slave_data:/var/lib/mysql
+      - ./mysql/order-slave/init-order-slave.sql:/docker-entrypoint-initdb.d/01-init-order-slave.sql
+      - ./mysql/order-slave/setup-order-replication.sh:/docker-entrypoint-initdb.d/02-setup-order-replication.sh
+    depends_on:
+      order-mysql-master:
         condition: service_healthy
     networks:
       - seckill-net
@@ -138,35 +214,33 @@ services:
       retries: 10
       start_period: 30s
 
-  # ── 后端实例 1 ────────────────────────────────────────────────────────
-  backend-1:
+  # ── Stock Service 实例 1 ──────────────────────────────────────────────
+  stock-service-1:
     build:
-      context: ./backend
+      context: ./stock-service
       dockerfile: Dockerfile
-    container_name: seckill-backend-1
+    container_name: seckill-stock-service-1
     ports:
-      - "8081:8080"
+      - "8081:8081"
     environment:
-      # 主库（写）
-      - MASTER_DATASOURCE_URL=jdbc:mysql://mysql-master:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      - MASTER_DATASOURCE_USERNAME=seckill
-      - MASTER_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-seckill123}
-      # 从库（读）
-      - SLAVE_DATASOURCE_URL=jdbc:mysql://mysql-slave:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      - SLAVE_DATASOURCE_USERNAME=seckill_ro
-      - SLAVE_DATASOURCE_PASSWORD=${SLAVE_PASSWORD:-seckill_ro123}
-      # 公共配置
+      - MASTER_DATASOURCE_URL=jdbc:mysql://stock-mysql-master:3306/stock_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=stock
+      - MASTER_DATASOURCE_PASSWORD=${STOCK_PASSWORD:-stock123}
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://stock-mysql-slave:3306/stock_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=stock_ro
+      - SLAVE_DATASOURCE_PASSWORD=${STOCK_SLAVE_PASSWORD:-stock_ro123}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ORDER_SERVICE_URL=http://order-service-1:8082
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
-      - INSTANCE_ID=backend-1
+      - INSTANCE_ID=stock-service-1
       - TZ=Asia/Shanghai
     depends_on:
-      mysql-master:
+      stock-mysql-master:
         condition: service_healthy
-      mysql-slave:
+      stock-mysql-slave:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -176,36 +250,103 @@ services:
       - seckill-net
     restart: on-failure
 
-  # ── 后端实例 2 ────────────────────────────────────────────────────────
-  backend-2:
+  # ── Stock Service 实例 2 ──────────────────────────────────────────────
+  stock-service-2:
     build:
-      context: ./backend
+      context: ./stock-service
       dockerfile: Dockerfile
-    container_name: seckill-backend-2
+    container_name: seckill-stock-service-2
     ports:
-      - "8082:8080"
+      - "8083:8081"
     environment:
-      - MASTER_DATASOURCE_URL=jdbc:mysql://mysql-master:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      - MASTER_DATASOURCE_USERNAME=seckill
-      - MASTER_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-seckill123}
-      - SLAVE_DATASOURCE_URL=jdbc:mysql://mysql-slave:3306/seckill_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      - SLAVE_DATASOURCE_USERNAME=seckill_ro
-      - SLAVE_DATASOURCE_PASSWORD=${SLAVE_PASSWORD:-seckill_ro123}
+      - MASTER_DATASOURCE_URL=jdbc:mysql://stock-mysql-master:3306/stock_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=stock
+      - MASTER_DATASOURCE_PASSWORD=${STOCK_PASSWORD:-stock123}
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://stock-mysql-slave:3306/stock_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=stock_ro
+      - SLAVE_DATASOURCE_PASSWORD=${STOCK_SLAVE_PASSWORD:-stock_ro123}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ORDER_SERVICE_URL=http://order-service-1:8082
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
-      - INSTANCE_ID=backend-2
+      - INSTANCE_ID=stock-service-2
       - TZ=Asia/Shanghai
     depends_on:
-      mysql-master:
+      stock-mysql-master:
         condition: service_healthy
-      mysql-slave:
+      stock-mysql-slave:
         condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    restart: on-failure
+
+  # ── Order Service 实例 1 ──────────────────────────────────────────────
+  order-service-1:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: seckill-order-service-1
+    ports:
+      - "8082:8082"
+    environment:
+      - MASTER_DATASOURCE_URL=jdbc:mysql://order-mysql-master:3306/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=order_user
+      - MASTER_DATASOURCE_PASSWORD=${ORDER_PASSWORD:-order123}
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://order-mysql-slave:3306/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=order_ro
+      - SLAVE_DATASOURCE_PASSWORD=${ORDER_SLAVE_PASSWORD:-order_ro123}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - STOCK_SERVICE_URL=http://stock-service-1:8081
+      - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
+      - INSTANCE_ID=order-service-1
+      - TZ=Asia/Shanghai
+    depends_on:
+      order-mysql-master:
+        condition: service_healthy
+      order-mysql-slave:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    restart: on-failure
+
+  # ── Order Service 实例 2 ──────────────────────────────────────────────
+  order-service-2:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: seckill-order-service-2
+    ports:
+      - "8084:8082"
+    environment:
+      - MASTER_DATASOURCE_URL=jdbc:mysql://order-mysql-master:3306/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - MASTER_DATASOURCE_USERNAME=order_user
+      - MASTER_DATASOURCE_PASSWORD=${ORDER_PASSWORD:-order123}
+      - SLAVE_DATASOURCE_URL=jdbc:mysql://order-mysql-slave:3306/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      - SLAVE_DATASOURCE_USERNAME=order_ro
+      - SLAVE_DATASOURCE_PASSWORD=${ORDER_SLAVE_PASSWORD:-order_ro123}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
+      - STOCK_SERVICE_URL=http://stock-service-1:8081
+      - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
+      - INSTANCE_ID=order-service-2
+      - TZ=Asia/Shanghai
+    depends_on:
+      order-mysql-master:
+        condition: service_healthy
+      order-mysql-slave:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - seckill-net
@@ -224,15 +365,19 @@ services:
       - ./frontend/dist:/usr/share/nginx/html:ro
       - ./nginx/static:/usr/share/nginx/static:ro
     depends_on:
-      - backend-1
-      - backend-2
+      - stock-service-1
+      - stock-service-2
+      - order-service-1
+      - order-service-2
     networks:
       - seckill-net
     restart: always
 
 volumes:
-  mysql_master_data:
-  mysql_slave_data:
+  stock_master_data:
+  stock_slave_data:
+  order_master_data:
+  order_slave_data:
   redis_data:
   kafka_data:
 

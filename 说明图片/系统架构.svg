@@ -1,167 +1,212 @@
-<svg width="100%" viewBox="0 0 680 660" role="img" xmlns="http://www.w3.org/2000/svg">
-  <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">商品与秒杀系统整体架构</title>
-  <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">四层架构：客户端 → Nginx接入层 → Spring Boot后端集群（含业务模块与中间件）→ 数据层（MySQL主从 + Redis）。</desc>
+<svg width="100%" viewBox="0 0 760 820" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>商品与秒杀系统整体架构（微服务拆分版）</title>
+  <desc>五层架构：客户端 → Nginx接入层 → 微服务集群（stock-service + order-service）→ 中间件层（Redis + Kafka）→ 数据层（两组MySQL主从）。服务间通过HTTP进行TCC分布式事务协调。</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-  <mask id="imagine-text-gaps-2b63fy" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="680" height="660" fill="white"/><rect x="293.3720397949219" y="31.185176849365234" width="93.73153686523438" height="21.6296443939209" fill="black" rx="2"/><rect x="52" y="104.03702545166016" width="43.98729705810547" height="19.11112403869629" fill="black" rx="2"/><rect x="204.80870056152344" y="123.18517303466797" width="70.38257598876953" height="21.6296443939209" fill="black" rx="2"/><rect x="183.47015380859375" y="142.44442749023438" width="113.0596923828125" height="19.11112403869629" fill="black" rx="2"/><rect x="394.0066223144531" y="123.18517303466797" width="91.98675537109375" height="21.6296443939209" fill="black" rx="2"/><rect x="396.5103759765625" y="142.44442749023438" width="86.97923278808594" height="19.11112403869629" fill="black" rx="2"/><rect x="52" y="214.03701782226562" width="55.97978591918945" height="19.11112403869629" fill="black" rx="2"/><rect x="148.8390655517578" y="233.18516540527344" width="112.32184600830078" height="21.6296443939209" fill="black" rx="2"/><rect x="158.75082397460938" y="252.44444274902344" width="93.08765411376953" height="19.11112403869629" fill="black" rx="2"/><rect x="336.0008239746094" y="233.18516540527344" width="117.99835205078125" height="21.6296443939209" fill="black" rx="2"/><rect x="348.7508239746094" y="252.44444274902344" width="93.08765411376953" height="19.11112403869629" fill="black" rx="2"/><rect x="52" y="324.0370178222656" width="99.88665008544922" height="19.11112403869629" fill="black" rx="2"/><rect x="79.00605773925781" y="357.1851806640625" width="63.987892150878906" height="21.6296443939209" fill="black" rx="2"/><rect x="80.95397186279297" y="378.44439697265625" width="60.09205627441406" height="19.11112403869629" fill="black" rx="2"/><rect x="209.00604248046875" y="357.1851806640625" width="63.987892150878906" height="21.6296443939209" fill="black" rx="2"/><rect x="200.76182556152344" y="378.44439697265625" width="81.08119201660156" height="19.11112403869629" fill="black" rx="2"/><rect x="339.00604248046875" y="357.1851806640625" width="63.987892150878906" height="21.6296443939209" fill="black" rx="2"/><rect x="319.28582763671875" y="378.44439697265625" width="103.79878234863281" height="19.11112403869629" fill="black" rx="2"/><rect x="469.00604248046875" y="357.1851806640625" width="63.987892150878906" height="21.6296443939209" fill="black" rx="2"/><rect x="464.90850830078125" y="378.44439697265625" width="71.55329132080078" height="19.11112403869629" fill="black" rx="2"/><rect x="158.16749572753906" y="443.1851806640625" width="55.66497039794922" height="21.6296443939209" fill="black" rx="2"/><rect x="130.0604248046875" y="462.4444274902344" width="111.87913513183594" height="19.11112403869629" fill="black" rx="2"/><rect x="130.0604248046875" y="478.4444274902344" width="111.87913513183594" height="19.11112403869629" fill="black" rx="2"/><rect x="339.2742614746094" y="443.1851806640625" width="121.45148468017578" height="21.6296443939209" fill="black" rx="2"/><rect x="342.7322998046875" y="462.4444274902344" width="114.73776245117188" height="19.11112403869629" fill="black" rx="2"/><rect x="351.4438171386719" y="478.4444274902344" width="97.11234283447266" height="19.11112403869629" fill="black" rx="2"/><rect x="52" y="539.0370483398438" width="43.98729705810547" height="19.11112403869629" fill="black" rx="2"/><rect x="94.64230346679688" y="581.1851806640625" width="146.85108947753906" height="21.6296443939209" fill="black" rx="2"/><rect x="114.84949493408203" y="600.4443969726562" width="106.7426986694336" height="19.11112403869629" fill="black" rx="2"/><rect x="301.1747131347656" y="581.1851806640625" width="133.65056610107422" height="21.6296443939209" fill="black" rx="2"/><rect x="323.67413330078125" y="600.4443969726562" width="89.35733032226562" height="19.11112403869629" fill="black" rx="2"/><rect x="246.82289123535156" y="574.0370483398438" width="43.064815521240234" height="19.11112403869629" fill="black" rx="2"/><rect x="510" y="564.0369873046875" width="97.05331420898438" height="19.11112403869629" fill="black" rx="2"/><rect x="510" y="582.0369873046875" width="101.06720733642578" height="19.11112403869629" fill="black" rx="2"/><rect x="510" y="600.0370483398438" width="105.84845733642578" height="19.11112403869629" fill="black" rx="2"/><rect x="510" y="616.0370483398438" width="77.83975982666016" height="19.11112403869629" fill="black" rx="2"/></mask></defs>
+  </defs>
 
   <!-- ══════════════════════════════════════
        ROW 0 — Client
   ══════════════════════════════════════ -->
-  <g onclick="sendPrompt('客户端如何发起秒杀请求？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="240" y="20" width="200" height="44" rx="8" stroke-width="0.5" style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="42" text-anchor="middle" dominant-baseline="central" style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Client 浏览器</text>
+  <g>
+    <rect x="280" y="16" width="200" height="44" rx="8" fill="rgb(241,239,232)" stroke="rgb(95,94,90)" stroke-width="0.5"/>
+    <text x="380" y="38" text-anchor="middle" dominant-baseline="central" fill="rgb(68,68,65)" font-size="14" font-weight="500" font-family="system-ui, sans-serif">Client 浏览器</text>
   </g>
 
-  <!-- Client ↓ -->
-  <line x1="340" y1="64" x2="340" y2="98" stroke="var(--b)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- Client ↓ Nginx -->
+  <line x1="380" y1="60" x2="380" y2="94" stroke="rgba(31,30,29,0.3)" stroke-width="1" marker-end="url(#arrow)"/>
 
   <!-- ══════════════════════════════════════
-       ROW 1 — 接入层 container
+       ROW 1 — 接入层
   ══════════════════════════════════════ -->
-  <rect x="44" y="100" width="592" height="76" rx="12" fill="var(--bg2)" stroke="#1D9E75" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.7" style="fill:rgb(245, 244, 237);stroke:rgb(29, 158, 117);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-dasharray:5px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="56" y="118" opacity="0.55" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">接入层</text>
+  <rect x="44" y="96" width="672" height="80" rx="12" fill="rgb(245,244,237)" stroke="rgb(29,158,117)" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.7"/>
+  <text x="56" y="112" opacity="0.55" fill="rgb(61,61,58)" font-size="12" font-family="system-ui, sans-serif">接入层</text>
 
   <!-- Nginx -->
-  <g onclick="sendPrompt('Nginx 如何做负载均衡和限流？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="160" y="114" width="160" height="50" rx="8" stroke-width="0.5" style="fill:rgb(225, 245, 238);stroke:rgb(15, 110, 86);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="240" y="134" text-anchor="middle" dominant-baseline="central" style="fill:rgb(8, 80, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Nginx :80</text>
-    <text x="240" y="152" text-anchor="middle" dominant-baseline="central" style="fill:rgb(15, 110, 86);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">反向代理 / 负载均衡</text>
-  </g>
+  <rect x="140" y="116" width="200" height="50" rx="8" fill="rgb(225,245,238)" stroke="rgb(15,110,86)" stroke-width="0.5"/>
+  <text x="240" y="136" text-anchor="middle" dominant-baseline="central" fill="rgb(8,80,65)" font-size="14" font-weight="500" font-family="system-ui, sans-serif">Nginx :80</text>
+  <text x="240" y="154" text-anchor="middle" dominant-baseline="central" fill="rgb(15,110,86)" font-size="11" font-family="system-ui, sans-serif">反向代理 / 负载均衡 / 动静分离</text>
 
   <!-- Static -->
-  <g onclick="sendPrompt('静态资源如何缓存加速？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="360" y="114" width="160" height="50" rx="8" stroke-width="0.5" style="fill:rgb(225, 245, 238);stroke:rgb(15, 110, 86);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="440" y="134" text-anchor="middle" dominant-baseline="central" style="fill:rgb(8, 80, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">静态资源服务</text>
-    <text x="440" y="152" text-anchor="middle" dominant-baseline="central" style="fill:rgb(15, 110, 86);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">JS / CSS / 图片</text>
-  </g>
+  <rect x="380" y="116" width="200" height="50" rx="8" fill="rgb(225,245,238)" stroke="rgb(15,110,86)" stroke-width="0.5"/>
+  <text x="480" y="136" text-anchor="middle" dominant-baseline="central" fill="rgb(8,80,65)" font-size="14" font-weight="500" font-family="system-ui, sans-serif">Vue 3 SPA</text>
+  <text x="480" y="154" text-anchor="middle" dominant-baseline="central" fill="rgb(15,110,86)" font-size="11" font-family="system-ui, sans-serif">静态资源 · JS / CSS / 图片</text>
 
-  <!-- Nginx ↓ -->
-  <line x1="240" y1="164" x2="240" y2="208" stroke="var(--b)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="164" x2="340" y2="208" stroke="var(--b)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- Nginx routing labels -->
+  <text x="240" y="190" text-anchor="middle" fill="rgb(136,135,128)" font-size="10" font-family="system-ui, sans-serif">/api/seckill|product|stock → stock_cluster</text>
+  <text x="240" y="203" text-anchor="middle" fill="rgb(136,135,128)" font-size="10" font-family="system-ui, sans-serif">/api/order|user → order_cluster</text>
 
-  <!-- ══════════════════════════════════════
-       ROW 2 — 后端集群 container
-  ══════════════════════════════════════ -->
-  <rect x="44" y="210" width="592" height="76" rx="12" fill="var(--bg2)" stroke="#378ADD" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.7" style="fill:rgb(245, 244, 237);stroke:rgb(55, 138, 221);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-dasharray:5px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="56" y="228" opacity="0.55" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">后端集群</text>
-
-  <!-- BE1 -->
-  <g onclick="sendPrompt('Spring Boot 实例如何保持无状态？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="120" y="224" width="170" height="50" rx="8" stroke-width="0.5" style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="205" y="244" text-anchor="middle" dominant-baseline="central" style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Backend-1 :8081</text>
-    <text x="205" y="262" text-anchor="middle" dominant-baseline="central" style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Spring Boot 3.2</text>
-  </g>
-
-  <!-- BE2 -->
-  <g onclick="sendPrompt('两个后端实例如何共享 Session？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="310" y="224" width="170" height="50" rx="8" stroke-width="0.5" style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="395" y="244" text-anchor="middle" dominant-baseline="central" style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Backend-2 :8082</text>
-    <text x="395" y="262" text-anchor="middle" dominant-baseline="central" style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Spring Boot 3.2</text>
-  </g>
-
-  <!-- BE1/BE2 ↓ to business modules -->
-  <line x1="205" y1="274" x2="205" y2="318" stroke="var(--b)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="395" y1="274" x2="395" y2="318" stroke="var(--b)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <path d="M205 296 L395 296" fill="none" stroke="var(--b)" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.4" style="fill:none;stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-dasharray:3px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.4;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- Nginx ↓ 微服务 -->
+  <line x1="200" y1="176" x2="200" y2="228" stroke="rgba(31,30,29,0.3)" stroke-width="1" marker-end="url(#arrow)"/>
+  <line x1="380" y1="176" x2="560" y2="228" stroke="rgba(31,30,29,0.3)" stroke-width="1" marker-end="url(#arrow)"/>
 
   <!-- ══════════════════════════════════════
-       ROW 3 — 业务模块 + 中间件 container
+       ROW 2 — 微服务集群
   ══════════════════════════════════════ -->
-  <rect x="44" y="320" width="592" height="196" rx="12" fill="var(--bg2)" stroke="#7F77DD" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.6" style="fill:rgb(245, 244, 237);stroke:rgb(127, 119, 221);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-dasharray:5px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="56" y="338" opacity="0.55" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">业务模块 · 中间件</text>
+  <rect x="44" y="216" width="672" height="150" rx="12" fill="rgb(245,244,237)" stroke="rgb(55,138,221)" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.7"/>
+  <text x="56" y="232" opacity="0.55" fill="rgb(61,61,58)" font-size="12" font-family="system-ui, sans-serif">微服务集群</text>
 
-  <!-- 4 business module boxes: row at y=348, h=56, w=118, gap=8 -->
-  <!-- x positions: 52, 178, 304, 430 — total 4×118+3×8=496, centered in 44..636 → offset=(592-496)/2+44=92 -->
-  <!-- Using x=52,178,304,430 width=118 -->
+  <!-- stock-service 框 -->
+  <rect x="60" y="242" width="280" height="112" rx="10" fill="rgb(230,241,251)" stroke="rgb(24,95,165)" stroke-width="0.8"/>
+  <text x="200" y="260" text-anchor="middle" fill="rgb(12,68,124)" font-size="13" font-weight="600" font-family="system-ui, sans-serif">stock-service</text>
 
-  <g onclick="sendPrompt('JWT 认证流程是怎样的？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="52" y="348" width="118" height="56" rx="8" stroke-width="0.5" style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="111" y="368" text-anchor="middle" dominant-baseline="central" style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">用户服务</text>
-    <text x="111" y="388" text-anchor="middle" dominant-baseline="central" style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">JWT 认证</text>
-  </g>
+  <!-- stock-service 实例 -->
+  <rect x="72" y="270" width="124" height="40" rx="6" fill="rgb(240,247,255)" stroke="rgb(24,95,165)" stroke-width="0.4"/>
+  <text x="134" y="286" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Instance-1 :8081</text>
+  <text x="134" y="300" text-anchor="middle" dominant-baseline="central" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">Spring Boot 3.2</text>
 
-  <g onclick="sendPrompt('商品服务如何防止缓存穿透和击穿？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="182" y="348" width="118" height="56" rx="8" stroke-width="0.5" style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="241" y="368" text-anchor="middle" dominant-baseline="central" style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">商品服务</text>
-    <text x="241" y="388" text-anchor="middle" dominant-baseline="central" style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Cache-Aside</text>
-  </g>
+  <rect x="208" y="270" width="124" height="40" rx="6" fill="rgb(240,247,255)" stroke="rgb(24,95,165)" stroke-width="0.4"/>
+  <text x="270" y="286" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Instance-2 :8083</text>
+  <text x="270" y="300" text-anchor="middle" dominant-baseline="central" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">Spring Boot 3.2</text>
 
-  <g onclick="sendPrompt('秒杀服务 Redis 预扣和 Kafka 异步的完整流程？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="312" y="348" width="118" height="56" rx="8" stroke-width="0.5" style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="371" y="368" text-anchor="middle" dominant-baseline="central" style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">秒杀服务</text>
-    <text x="371" y="388" text-anchor="middle" dominant-baseline="central" style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Redis预扣+Kafka</text>
-  </g>
+  <!-- stock-service 职责 -->
+  <text x="200" y="326" text-anchor="middle" fill="rgb(83,74,183)" font-size="10" font-family="system-ui, sans-serif">商品/库存/秒杀入口 · Kafka Producer + Consumer</text>
+  <text x="200" y="340" text-anchor="middle" fill="rgb(83,74,183)" font-size="10" font-family="system-ui, sans-serif">Redis 预扣库存 · TCC Stock Participant</text>
 
-  <g onclick="sendPrompt('TCC 事务的 Confirm 和 Cancel 如何实现？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="442" y="348" width="118" height="56" rx="8" stroke-width="0.5" style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="501" y="368" text-anchor="middle" dominant-baseline="central" style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">订单服务</text>
-    <text x="501" y="388" text-anchor="middle" dominant-baseline="central" style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">TCC 协调器</text>
-  </g>
+  <!-- order-service 框 -->
+  <rect x="380" y="242" width="320" height="112" rx="10" fill="rgb(230,241,251)" stroke="rgb(24,95,165)" stroke-width="0.8"/>
+  <text x="540" y="260" text-anchor="middle" fill="rgb(12,68,124)" font-size="13" font-weight="600" font-family="system-ui, sans-serif">order-service</text>
 
-  <!-- Middleware row: Redis + Kafka -->
-  <!-- Redis x=96 w=160, Kafka x=296 w=160, gap=40 — centers at 176, 376 -->
-  <g onclick="sendPrompt('Redis 在秒杀中承担哪几种职责？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="96" y="432" width="180" height="68" rx="8" stroke-width="0.5" style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="186" y="454" text-anchor="middle" dominant-baseline="central" style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Redis 7</text>
-    <text x="186" y="472" text-anchor="middle" dominant-baseline="central" style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">库存预扣 · 分布式锁</text>
-    <text x="186" y="488" text-anchor="middle" dominant-baseline="central" style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">幂等标记 · 商品缓存</text>
-  </g>
+  <!-- order-service 实例 -->
+  <rect x="392" y="270" width="148" height="40" rx="6" fill="rgb(240,247,255)" stroke="rgb(24,95,165)" stroke-width="0.4"/>
+  <text x="466" y="286" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Instance-1 :8082</text>
+  <text x="466" y="300" text-anchor="middle" dominant-baseline="central" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">Spring Boot 3.2</text>
 
-  <g onclick="sendPrompt('Kafka topic seckill-order 的消费者组是怎样的？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="310" y="432" width="180" height="68" rx="8" stroke-width="0.5" style="fill:rgb(250, 238, 218);stroke:rgb(133, 79, 11);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="400" y="454" text-anchor="middle" dominant-baseline="central" style="fill:rgb(99, 56, 6);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Kafka 3.x (KRaft)</text>
-    <text x="400" y="472" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 79, 11);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">topic: seckill-order</text>
-    <text x="400" y="488" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 79, 11);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">3 分区 · 异步消费</text>
-  </g>
+  <rect x="548" y="270" width="148" height="40" rx="6" fill="rgb(240,247,255)" stroke="rgb(24,95,165)" stroke-width="0.4"/>
+  <text x="622" y="286" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Instance-2 :8084</text>
+  <text x="622" y="300" text-anchor="middle" dominant-baseline="central" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">Spring Boot 3.2</text>
 
-  <!-- business → middleware arrows (short vertical) -->
-  <!-- 商品服务 → Redis -->
-  <path d="M241 404 L241 420 L186 420 L186 432" fill="none" stroke="#534AB7" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)" style="fill:none;stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <!-- 秒杀服务 → Redis -->
-  <path d="M350 404 L350 420 L186 420 L186 432" fill="none" stroke="#534AB7" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)" style="fill:none;stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <!-- 秒杀服务 → Kafka -->
-  <path d="M392 404 L392 420 L400 420 L400 432" fill="none" stroke="#BA7517" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)" style="fill:none;stroke:rgb(186, 117, 23);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- order-service 职责 -->
+  <text x="540" y="326" text-anchor="middle" fill="rgb(83,74,183)" font-size="10" font-family="system-ui, sans-serif">用户认证(JWT) · 订单生命周期 · TCC Coordinator</text>
+  <text x="540" y="340" text-anchor="middle" fill="rgb(83,74,183)" font-size="10" font-family="system-ui, sans-serif">超时取消任务(30s) · 支付/取消 TCC Confirm/Cancel</text>
+
+  <!-- 服务间 HTTP 调用（TCC） -->
+  <path d="M340 295 L380 295" fill="none" stroke="rgb(186,117,23)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <path d="M380 310 L340 310" fill="none" stroke="rgb(186,117,23)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="360" y="288" text-anchor="middle" fill="rgb(133,79,11)" font-size="9" font-family="system-ui, sans-serif">HTTP TCC</text>
+  <text x="360" y="322" text-anchor="middle" fill="rgb(133,79,11)" font-size="9" font-family="system-ui, sans-serif">Try/Confirm/Cancel</text>
 
   <!-- ══════════════════════════════════════
-       ROW 4 — 数据层 container
+       ROW 3 — 中间件层
   ══════════════════════════════════════ -->
-  <rect x="44" y="536" width="592" height="104" rx="12" fill="var(--bg2)" stroke="#D85A30" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.6" style="fill:rgb(245, 244, 237);stroke:rgb(216, 90, 48);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-dasharray:5px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.6;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="56" y="553" opacity="0.55" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">数据层</text>
+  <rect x="44" y="390" width="672" height="120" rx="12" fill="rgb(245,244,237)" stroke="rgb(127,119,221)" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.6"/>
+  <text x="56" y="406" opacity="0.55" fill="rgb(61,61,58)" font-size="12" font-family="system-ui, sans-serif">中间件层</text>
 
-  <!-- MySQL Master cylinder -->
-  <ellipse cx="168" cy="572" rx="72" ry="14" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <rect x="96" y="572" width="144" height="48" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <ellipse cx="168" cy="620" rx="72" ry="14" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="168" y="592" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">MySQL Master :3306</text>
-  <text x="168" y="610" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">读写 · binlog ROW</text>
+  <!-- Redis -->
+  <rect x="72" y="416" width="260" height="80" rx="8" fill="rgb(230,241,251)" stroke="rgb(24,95,165)" stroke-width="0.5"/>
+  <text x="202" y="438" text-anchor="middle" dominant-baseline="central" fill="rgb(12,68,124)" font-size="14" font-weight="500" font-family="system-ui, sans-serif">Redis 7 :6379</text>
+  <text x="202" y="458" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="11" font-family="system-ui, sans-serif">库存预扣(DECR) · 防重复(SETNX)</text>
+  <text x="202" y="474" text-anchor="middle" dominant-baseline="central" fill="rgb(24,95,165)" font-size="11" font-family="system-ui, sans-serif">分布式锁 · 商品缓存 · TCC回滚(INCRBY)</text>
 
-  <!-- MySQL Slave cylinder -->
-  <ellipse cx="368" cy="572" rx="72" ry="14" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <rect x="296" y="572" width="144" height="48" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <ellipse cx="368" cy="620" rx="72" ry="14" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5" style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="368" y="592" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">MySQL Slave :3307</text>
-  <text x="368" y="610" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">只读 · relay-log</text>
+  <!-- Kafka -->
+  <rect x="388" y="416" width="300" height="80" rx="8" fill="rgb(250,238,218)" stroke="rgb(133,79,11)" stroke-width="0.5"/>
+  <text x="538" y="438" text-anchor="middle" dominant-baseline="central" fill="rgb(99,56,6)" font-size="14" font-weight="500" font-family="system-ui, sans-serif">Kafka 3.x (KRaft) :9092</text>
+  <text x="538" y="458" text-anchor="middle" dominant-baseline="central" fill="rgb(133,79,11)" font-size="11" font-family="system-ui, sans-serif">topic: seckill-order (3 分区)</text>
+  <text x="538" y="474" text-anchor="middle" dominant-baseline="central" fill="rgb(133,79,11)" font-size="11" font-family="system-ui, sans-serif">Producer(acks=all) + Consumer(手动ACK)</text>
 
-  <!-- binlog sync -->
-  <line x1="240" y1="596" x2="296" y2="596" stroke="#BA7517" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-2b63fy)" style="fill:rgb(0, 0, 0);stroke:rgb(186, 117, 23);color:rgb(0, 0, 0);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="268" y="588" text-anchor="middle" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">binlog</text>
+  <!-- 微服务 → 中间件箭头 -->
+  <!-- stock-service → Redis -->
+  <line x1="140" y1="354" x2="140" y2="416" stroke="rgb(83,74,183)" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- stock-service → Kafka -->
+  <line x1="260" y1="354" x2="500" y2="416" stroke="rgb(186,117,23)" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- order-service → Redis -->
+  <line x1="540" y1="354" x2="300" y2="416" stroke="rgb(83,74,183)" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 
-  <!-- TCC / OrderService → MySQL Master (write) -->
-  <path d="M501 404 L501 526 L168 526 L168 558" fill="none" stroke="#D85A30" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)" style="fill:none;stroke:rgb(216, 90, 48);color:rgb(0, 0, 0);stroke-width:0.9px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- ══════════════════════════════════════
+       ROW 4 — 数据层
+  ══════════════════════════════════════ -->
+  <rect x="44" y="534" width="672" height="210" rx="12" fill="rgb(245,244,237)" stroke="rgb(216,90,48)" stroke-width="0.5" stroke-dasharray="5 3" opacity="0.6"/>
+  <text x="56" y="550" opacity="0.55" fill="rgb(61,61,58)" font-size="12" font-family="system-ui, sans-serif">数据层</text>
 
-  <!-- 商品服务/订单服务 → MySQL Slave (read) -->
-  <path d="M241 404 L241 514 L368 514 L368 558" fill="none" stroke="#888780" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-2b63fy)" style="fill:none;stroke:rgb(136, 135, 128);color:rgb(0, 0, 0);stroke-width:0.9px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- ── stock_db 集群 ── -->
+  <text x="202" y="568" text-anchor="middle" fill="rgb(153,60,29)" font-size="11" font-weight="600" font-family="system-ui, sans-serif">stock_db 集群</text>
 
-  <!-- Kafka → MySQL Master (TCC Try) -->
-  <path d="M400 500 L400 526 L200 526 L200 558" fill="none" stroke="#BA7517" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)" style="fill:none;stroke:rgb(186, 117, 23);color:rgb(0, 0, 0);stroke-width:0.9px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <!-- stock MySQL Master -->
+  <ellipse cx="136" cy="590" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <rect x="76" y="590" width="120" height="48" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <ellipse cx="136" cy="638" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <text x="136" y="610" text-anchor="middle" dominant-baseline="central" fill="rgb(20,20,19)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Master :3308</text>
+  <text x="136" y="628" text-anchor="middle" dominant-baseline="central" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">读写 · binlog ROW</text>
 
-  <!-- Legend -->
-  <rect x="500" y="560" width="130" height="76" rx="6" fill="var(--bg2)" stroke="var(--b)" stroke-width="0.5" opacity="0.8" style="fill:rgb(245, 244, 237);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.8;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="514" y="578" opacity="0.7" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">紫色 — 业务模块</text>
-  <text x="514" y="596" opacity="0.7" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">蓝色 — 缓存/接入</text>
-  <text x="514" y="614" opacity="0.7" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">橙色 — 消息/DB写</text>
-  <text x="514" y="630" opacity="0.7" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto">灰色 — DB读</text>
+  <!-- stock MySQL Slave -->
+  <ellipse cx="268" cy="590" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <rect x="208" y="590" width="120" height="48" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <ellipse cx="268" cy="638" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <text x="268" y="610" text-anchor="middle" dominant-baseline="central" fill="rgb(20,20,19)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Slave :3309</text>
+  <text x="268" y="628" text-anchor="middle" dominant-baseline="central" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">只读 · relay-log</text>
+
+  <!-- stock binlog sync -->
+  <line x1="196" y1="614" x2="208" y2="614" stroke="rgb(186,117,23)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="202" y="608" text-anchor="middle" fill="rgb(133,79,11)" font-size="9" font-family="system-ui, sans-serif">binlog</text>
+
+  <!-- stock_db 表 -->
+  <text x="202" y="664" text-anchor="middle" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">product · seckill_product</text>
+
+  <!-- ── order_db 集群 ── -->
+  <text x="558" y="568" text-anchor="middle" fill="rgb(153,60,29)" font-size="11" font-weight="600" font-family="system-ui, sans-serif">order_db 集群</text>
+
+  <!-- order MySQL Master -->
+  <ellipse cx="492" cy="590" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <rect x="432" y="590" width="120" height="48" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <ellipse cx="492" cy="638" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <text x="492" y="610" text-anchor="middle" dominant-baseline="central" fill="rgb(20,20,19)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Master :3310</text>
+  <text x="492" y="628" text-anchor="middle" dominant-baseline="central" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">读写 · binlog ROW</text>
+
+  <!-- order MySQL Slave -->
+  <ellipse cx="624" cy="590" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <rect x="564" y="590" width="120" height="48" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <ellipse cx="624" cy="638" rx="60" ry="12" fill="rgb(250,236,231)" stroke="rgb(153,60,29)" stroke-width="0.5"/>
+  <text x="624" y="610" text-anchor="middle" dominant-baseline="central" fill="rgb(20,20,19)" font-size="12" font-weight="500" font-family="system-ui, sans-serif">Slave :3311</text>
+  <text x="624" y="628" text-anchor="middle" dominant-baseline="central" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">只读 · relay-log</text>
+
+  <!-- order binlog sync -->
+  <line x1="552" y1="614" x2="564" y2="614" stroke="rgb(186,117,23)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="558" y="608" text-anchor="middle" fill="rgb(133,79,11)" font-size="9" font-family="system-ui, sans-serif">binlog</text>
+
+  <!-- order_db 表 -->
+  <text x="558" y="664" text-anchor="middle" fill="rgb(100,130,170)" font-size="10" font-family="system-ui, sans-serif">user · order</text>
+
+  <!-- ── 读写分离标注 ── -->
+  <rect x="60" y="680" width="640" height="48" rx="6" fill="rgb(248,248,245)" stroke="rgba(31,30,29,0.15)" stroke-width="0.5"/>
+  <text x="380" y="698" text-anchor="middle" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">读写分离：AOP 拦截 → get/find/list/query/count/select 方法路由 Slave，其余路由 Master（DynamicDataSource + ThreadLocal）</text>
+  <text x="380" y="714" text-anchor="middle" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">两组独立数据库集群，服务间不共享数据库，通过 HTTP REST API 进行跨服务数据访问</text>
+
+  <!-- 微服务 → 数据层箭头 -->
+  <!-- stock-service → stock Master (写) -->
+  <line x1="160" y1="354" x2="136" y2="578" stroke="rgb(216,90,48)" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- stock-service → stock Slave (读) -->
+  <line x1="240" y1="354" x2="268" y2="578" stroke="rgb(136,135,128)" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- order-service → order Master (写) -->
+  <line x1="500" y1="354" x2="492" y2="578" stroke="rgb(216,90,48)" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- order-service → order Slave (读) -->
+  <line x1="580" y1="354" x2="624" y2="578" stroke="rgb(136,135,128)" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- Kafka → stock-service (消费写入) -->
+  <line x1="500" y1="496" x2="260" y2="354" stroke="rgb(186,117,23)" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- ══════════════════════════════════════
+       图例
+  ══════════════════════════════════════ -->
+  <rect x="60" y="740" width="640" height="64" rx="8" fill="rgb(245,244,237)" stroke="rgba(31,30,29,0.2)" stroke-width="0.5"/>
+  <text x="80" y="758" fill="rgb(61,61,58)" font-size="11" font-weight="500" font-family="system-ui, sans-serif">图例</text>
+
+  <line x1="80" y1="772" x2="110" y2="772" stroke="rgba(31,30,29,0.3)" stroke-width="1"/>
+  <text x="116" y="776" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">同步调用</text>
+
+  <line x1="170" y1="772" x2="200" y2="772" stroke="rgb(186,117,23)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="206" y="776" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">TCC事务 / 消息</text>
+
+  <line x1="290" y1="772" x2="320" y2="772" stroke="rgb(216,90,48)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="326" y="776" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">DB写入</text>
+
+  <line x1="390" y1="772" x2="420" y2="772" stroke="rgb(136,135,128)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="426" y="776" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">DB读取</text>
+
+  <line x1="480" y1="772" x2="510" y2="772" stroke="rgb(186,117,23)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="516" y="776" fill="rgb(61,61,58)" font-size="10" font-family="system-ui, sans-serif">binlog同步</text>
+
+  <!-- 底部说明 -->
+  <text x="380" y="796" text-anchor="middle" fill="rgb(136,135,128)" font-size="10" font-family="system-ui, sans-serif">微服务架构：stock-service（库存域）与 order-service（订单域）独立部署、独立数据库，通过 HTTP REST + TCC 保证分布式事务一致性</text>
 </svg>
