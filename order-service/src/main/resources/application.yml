@@ -4,6 +4,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  cloud:
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8070}
+        port: 8719
   datasource:
     master:
       jdbc-url: ${MASTER_DATASOURCE_URL:jdbc:mysql://localhost:3310/order_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
@@ -57,7 +62,7 @@ jwt:
   expiration: 86400000
 
 stock-service:
-  url: ${STOCK_SERVICE_URL:http://localhost:8081}
+  url: http://stock-service
 
 app:
   instance-id: ${INSTANCE_ID:order-local}

@@ -167,6 +167,45 @@ services:
       retries: 10
       start_period: 40s
 
+  # ── Nacos 注册中心 + 配置中心 ──────────────────────────────────────────
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: seckill-nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      SPRING_DATASOURCE_PLATFORM: ""
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    volumes:
+      - nacos_data:/home/nacos/data
+      - nacos_logs:/home/nacos/logs
+    networks:
+      - seckill-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8848/nacos/v1/console/health/liveness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Sentinel 流量治理控制台 ────────────────────────────────────────────
+  sentinel:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: seckill-sentinel
+    ports:
+      - "8070:8858"
+    environment:
+      TZ: Asia/Shanghai
+    networks:
+      - seckill-net
+
   # ── Redis ─────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -233,7 +272,8 @@ services:
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - ORDER_SERVICE_URL=http://order-service-1:8082
+      - NACOS_SERVER_ADDR=nacos:8848
+      - SENTINEL_DASHBOARD=sentinel:8858
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=stock-service-1
       - TZ=Asia/Shanghai
@@ -245,6 +285,8 @@ services:
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - seckill-net
@@ -269,7 +311,8 @@ services:
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - ORDER_SERVICE_URL=http://order-service-1:8082
+      - NACOS_SERVER_ADDR=nacos:8848
+      - SENTINEL_DASHBOARD=sentinel:8858
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=stock-service-2
       - TZ=Asia/Shanghai
@@ -281,6 +324,8 @@ services:
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - seckill-net
@@ -304,7 +349,8 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
-      - STOCK_SERVICE_URL=http://stock-service-1:8081
+      - NACOS_SERVER_ADDR=nacos:8848
+      - SENTINEL_DASHBOARD=sentinel:8858
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=order-service-1
       - TZ=Asia/Shanghai
@@ -314,6 +360,8 @@ services:
       order-mysql-slave:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - seckill-net
@@ -337,7 +385,8 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redis123}
-      - STOCK_SERVICE_URL=http://stock-service-1:8081
+      - NACOS_SERVER_ADDR=nacos:8848
+      - SENTINEL_DASHBOARD=sentinel:8858
       - JWT_SECRET=${JWT_SECRET:-seckill-jwt-secret-key-2024-very-long-string-12345678901234567890}
       - INSTANCE_ID=order-service-2
       - TZ=Asia/Shanghai
@@ -347,6 +396,26 @@ services:
       order-mysql-slave:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - seckill-net
+    restart: on-failure
+
+  # ── Spring Cloud Gateway 网关 ─────────────────────────────────────────
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: seckill-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NACOS_SERVER_ADDR=nacos:8848
+      - TZ=Asia/Shanghai
+    depends_on:
+      nacos:
         condition: service_healthy
     networks:
       - seckill-net
@@ -365,10 +434,7 @@ services:
       - ./frontend/dist:/usr/share/nginx/html:ro
       - ./nginx/static:/usr/share/nginx/static:ro
     depends_on:
-      - stock-service-1
-      - stock-service-2
-      - order-service-1
-      - order-service-2
+      - gateway-service
     networks:
       - seckill-net
     restart: always
@@ -380,6 +446,8 @@ volumes:
   order_slave_data:
   redis_data:
   kafka_data:
+  nacos_data:
+  nacos_logs:
 
 networks:
   seckill-net:

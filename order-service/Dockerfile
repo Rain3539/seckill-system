@@ -1,6 +1,7 @@
 # 多阶段构建
 FROM maven:3.9.5-eclipse-temurin-17 AS builder
 WORKDIR /build
+COPY settings.xml /root/.m2/settings.xml
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 COPY src ./src
