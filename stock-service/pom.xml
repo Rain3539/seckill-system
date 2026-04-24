@@ -122,6 +122,12 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
+        <!-- Spring Cloud LoadBalancer（@LoadBalanced RestTemplate 需要） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
         <!-- Spring Cloud Alibaba Nacos 配置中心 -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
